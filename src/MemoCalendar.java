@@ -35,6 +35,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
 public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 GUI + 메모기능
+	
 	JFrame mainFrame;
 		ImageIcon icon = new ImageIcon ( Toolkit.getDefaultToolkit().getImage(getClass().getResource("icon.png")));
 	
@@ -74,13 +75,14 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 	private CrawlingSchedule crawling = new CrawlingSchedule(calYear);
 	private HashMap<Integer, Vector<String>> academySchedule;
 	
-	public MemoCalendar(){ //구성요소 순으로 정렬되어 있음. 각 판넬 사이에 빈줄로 구별
+	public MemoCalendar(){ //구성요소 순으로 정렬되어 있음. 각 판넬 사이에 빈줄로 구별		
 		mainFrame = new JFrame(title);
 		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		mainFrame.setSize(700,400);
 		mainFrame.setLocationRelativeTo(null);
 		mainFrame.setResizable(false);
 		mainFrame.setIconImage(icon.getImage());
+		
 		try{
 			UIManager.setLookAndFeel ("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");//LookAndFeel Windows 스타일 적용
 			SwingUtilities.updateComponentTreeUI(mainFrame) ;
@@ -158,6 +160,7 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 				weekDaysName[i].setFocusPainted(false);
 				calPanel.add(weekDaysName[i]);
 			}
+			
 			for(int i=0 ; i<CAL_HEIGHT ; i++){
 				for(int j=0 ; j<CAL_WIDTH ; j++){
 					dateButs[i][j]=new JButton();
@@ -181,7 +184,7 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 			
 		memoPanel = new MemoPart(today.get(Calendar.YEAR), today.get(Calendar.MONTH)+1, today.get(Calendar.DAY_OF_MONTH));				
 		memoPanel.setSelectedDate("<Html><font size=3>"+(today.get(Calendar.MONTH)+1)+"/"+today.get(Calendar.DAY_OF_MONTH)+"/"+today.get(Calendar.YEAR)+"&nbsp;(Today)</html>");
-		
+
 		JPanel frameSubPanelWest = new JPanel();
 		Dimension calOpPanelSize = calOpPanel.getPreferredSize();
 		calOpPanelSize.height = 90;
@@ -191,7 +194,7 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 		frameSubPanelWest.add(calPanel,BorderLayout.CENTER);
 
 		Dimension frameSubPanelWestSize = frameSubPanelWest.getPreferredSize();
-		frameSubPanelWestSize.width = 410;
+		frameSubPanelWestSize.width = 430;
 		frameSubPanelWest.setPreferredSize(frameSubPanelWestSize);
 		
 		JPanel frameSubPanelEast = memoPanel;
@@ -205,6 +208,7 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 		mainFrame.add(frameSubPanelWest, BorderLayout.WEST);
 		mainFrame.add(frameSubPanelEast, BorderLayout.CENTER);
 		mainFrame.add(frameBottomPanel, BorderLayout.SOUTH);
+		
 		mainFrame.setVisible(true);
 
 		focusToday(); //현재 날짜에 focus를 줌 (mainFrame.setVisible(true) 이후에 배치해야함)
@@ -328,13 +332,11 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 			File f = new File("MemoData/"+ calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon+".txt");
 			if(f.exists()){
 				BufferedReader in = new BufferedReader(new FileReader("MemoData/"+calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon+".txt"));
-				System.out.println("MemoData/"+calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon+".txt");
 				memoAreaText = new Vector<String>();
 				while(true){
 					String tmpString = in.readLine();
 					if(tmpString == null) break;
 					memoAreaText.add(tmpString);
-					System.out.println(memoAreaText);
 				}
 				memoPanel.setUserMemo(memoAreaText);
 				in.close();	
@@ -499,8 +501,13 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 			public void actionPerformed(ActionEvent e) {
 				JButton target = (JButton)e.getSource();
 				if(target.equals(saveBut)) {					//저장버튼의 리스너
-					writeMemo(memoInsArea.getText() + "\n");
-					memoInsArea.setText("");
+					String targetText = memoInsArea.getText();
+					if(!targetText.equals("")) {
+						writeMemo(targetText + "\n");
+						memoInsArea.setText("");
+					} else {
+						bottomInfo.setText(SaveButMsg2);
+					}
 				} else if(target.equals(delBut)) {				//삭제버튼의 리스너
 					int selected = memoShoArea.getSelectedIndex();
 					if (selected != -1) {
