@@ -38,7 +38,6 @@ import javax.swing.event.DocumentListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
-
 public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 GUI + 메모기능
 	Font font = new Font("나눔스퀘어",Font.PLAIN,14);  
 	JFrame mainFrame;
@@ -66,18 +65,23 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 	//상수, 메세지
 	final String WEEK_DAY_NAME[] = { "SUN", "MON", "TUE", "WED", "THR", "FRI", "SAT" };
 	final String title = "Jalender";
-	final String SaveButMsg1 = "를 MemoData폴더에 저장하였습니다.";
+	final String SaveButMsg1 = "를 메모에 저장하였습니다.";
 	final String SaveButMsg2 = "메모를 먼저 작성해 주세요.";
 	final String SaveButMsg3 = "<html><font color=red>ERROR : 파일 쓰기 실패</html>";
-	final String DelButMsg1 = "메모를 삭제하였습니다.";
-	final String DelButMsg2 = "작성되지 않았거나 이미 삭제된 memo입니다.";
+	final String DelButMsg1 = " 메모를 삭제하였습니다.";
+	final String DelButMsg2 = "작성되지 않았거나 이미 삭제된 메모입니다.";
 	final String DelButMsg3 = "<html><font color=red>ERROR : 파일 삭제 실패</html>";
 
 	private Vector<String> memoAreaText = new Vector<String>();
 	private CrawlingSchedule crawling = new CrawlingSchedule(calYear);
 	private HashMap<Integer, Vector<String>> academySchedule;
 	
-	public MemoCalendar(){ //구성요소 순으로 정렬되어 있음. 각 판넬 사이에 빈줄로 구별	
+	private boolean useDB = false;
+	private DBManager db = new DBManager();
+	
+	public MemoCalendar(){ //구성요소 순으로 정렬되어 있음. 각 판넬 사이에 빈줄로 구별
+		useDB = db.connectDB();
+
 		Font font = new Font("나눔스퀘어",Font.PLAIN,14);
 		academySchedule = crawling.getAcademySchedule();
 		
@@ -242,12 +246,19 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 				tmpDate = calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDates[i][j]<10?"0":"")+calDates[i][j];
 				if(academySchedule.get(Integer.parseInt(tmpDate)) != null) fontColor = "green";
 				
-				File f =new File("MemoData/"+tmpDate+".txt");
-				if(f.exists()) 
-					dateButs[i][j].setText("<html><b><font color="+fontColor+">"+calDates[i][j]+"</font></b></html>");
-				else 
-					dateButs[i][j].setText("<html><font color="+fontColor+">"+calDates[i][j]+"</font></html>");
-				
+				if(useDB) {
+					if(db.isAvailable(tmpDate)) 
+						dateButs[i][j].setText("<html><b><font color="+fontColor+">"+calDates[i][j]+"</font></b></html>");
+					else 
+						dateButs[i][j].setText("<html><font color="+fontColor+">"+calDates[i][j]+"</font></html>");
+				} else {
+					File f =new File("MemoData/"+tmpDate+".txt");
+					if(f.exists()) 
+						dateButs[i][j].setText("<html><b><font color="+fontColor+">"+calDates[i][j]+"</font></b></html>");
+					else 
+						dateButs[i][j].setText("<html><font color="+fontColor+">"+calDates[i][j]+"</font></html>");
+				}
+
 				JLabel todayMark = new JLabel("<html><font color=red>*</html>");
 				dateButs[i][j].removeAll();
 				if(calMonth == today.get(Calendar.MONTH) &&
@@ -295,7 +306,7 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 				return;
 			}
 			
-			if(calYear > presentYear - 5 && calYear < presentYear) {
+			if(calYear > presentYear - 5 && calYear <= presentYear) {
 				crawling = new CrawlingSchedule(calYear);
 				academySchedule = crawling.getAcademySchedule();
 			}
@@ -306,7 +317,7 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 			
 			curMMYYYYLab.setText("<html><table width=100><tr><th><font size=5>"+((calMonth+1)<10?"&nbsp;":"")+(calMonth+1)+" / "
 								+calYear+"</th></tr></table></html>");
-			readMemo();
+			
 			showCal();
 		}
 	}
@@ -359,78 +370,109 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 	}
 	
 	private void readMemo(){
-		try{
-			File f = new File("MemoData/"+ calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon+".txt");
-			if(f.exists()){
-				BufferedReader in = new BufferedReader(new FileReader("MemoData/"+calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon+".txt"));
-				System.out.println("MemoData/"+calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon+".txt");
-				memoAreaText = new Vector<String>();
-				while(true){
-					String tmpString = in.readLine();
-					if(tmpString == null) break;
-					memoAreaText.add(tmpString);
+
+		if(useDB) {
+			String tmpDate = calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon;
+			memoAreaText = db.getData(tmpDate);
+			if(memoAreaText == null)	memoPanel.setUserMemo(null);
+			else	memoPanel.setUserMemo(memoAreaText);
+		} else {
+			try{
+				File f = new File("MemoData/"+ calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon+".txt");
+				if(f.exists()){
+					BufferedReader in = new BufferedReader(new FileReader("MemoData/"+calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon+".txt"));
+					System.out.println("MemoData/"+calYear+((calMonth+1)<10?"0":"")+(calMonth+1)+(calDayOfMon<10?"0":"")+calDayOfMon+".txt");
+					memoAreaText = new Vector<String>();
+					while(true){
+						String tmpString = in.readLine();
+						if(tmpString == null) break;
+						memoAreaText.add(tmpString);
+					}
+					memoPanel.setUserMemo(memoAreaText);
+					in.close();	
 				}
-				memoPanel.setUserMemo(memoAreaText);
-				in.close();	
+				else memoPanel.setUserMemo(null);
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-			else memoPanel.setUserMemo(null);
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 	
-	private void modifyMemo()
+	private void modifyMemo(String delMemo)
 	{
-		try {
-			if(memoAreaText.isEmpty()) {
-				File f = new File("MemoData/"+calYear+((calMonth+1)<10?"0":"")
-						+ (calMonth+1) + (calDayOfMon<10?"0":"") + calDayOfMon+".txt");
-				f.delete();
-			} else {
-				BufferedWriter out = new BufferedWriter(new FileWriter("MemoData/"+calYear+((calMonth+1)<10?"0":"")
-						+ (calMonth+1) + (calDayOfMon<10?"0":"") + calDayOfMon+".txt"));
-				String outString = "";
-				
-				Iterator<String> modify = memoAreaText.iterator();
-				while(modify.hasNext())
-					outString += modify.next() + "\n";
-				
-				out.write(outString);
-				out.close();
-				
-				bottomInfo.setText(calYear + ((calMonth + 1) < 10 ? "0" : "") 
-						+ (calMonth + 1) + (calDayOfMon < 10 ? "0" : "") + calDayOfMon + ".txt" + DelButMsg1);
+		String tmpDate = calYear+((calMonth+1)<10?"0":"") + (calMonth+1) + (calDayOfMon<10?"0":"") + calDayOfMon;
+		
+		if(useDB) {
+			delMemo = "'" + delMemo + "'";
+			db.removeData(tmpDate, delMemo);
+			bottomInfo.setText(delMemo + DelButMsg1);
+		} else {
+			try {
+				if(memoAreaText.isEmpty()) {
+					File f = new File("MemoData/"+ tmpDate +".txt");
+					f.delete();
+				} else {
+					BufferedWriter out = new BufferedWriter(new FileWriter("MemoData/" + tmpDate + ".txt"));
+					String outString = "";
+					
+					Iterator<String> modify = memoAreaText.iterator();
+					String tmpMemo = "";
+					while(modify.hasNext()) {
+						tmpMemo = modify.next();
+						if (tmpMemo.equals(delMemo))
+							continue;
+						outString += tmpMemo + "\n";
+					}
+					
+					if(outString.equals("")) {
+						File f = new File("MemoData/"+ tmpDate +".txt");
+						f.delete();
+					} else {
+						out.write(outString);
+						out.close();
+					}
+					
+					bottomInfo.setText(delMemo + DelButMsg1);
+				}
+			} catch (IOException e1) {
+				bottomInfo.setText(DelButMsg3);
 			}
-			readMemo();
-			showCal(); 
-		} catch (IOException e1) {
-			bottomInfo.setText(DelButMsg3);
 		}
+
+		readMemo();
+		showCal(); 
 	}
 	
-	private void writeMemo(String memo)
+	private void writeMemo(String saveMemo)
 	{
-		try {
-			File f = new File("MemoData");
-			if(!f.isDirectory()) f.mkdir();
-			
-			if(memo.length() > 0){
-				BufferedWriter out = new BufferedWriter(new FileWriter("MemoData/"+calYear+((calMonth+1)<10?"0":"")
-						+ (calMonth+1) + (calDayOfMon<10?"0":"") + calDayOfMon+".txt", true));
-				PrintWriter pw = new PrintWriter(out, true);
+		String tmpDate = calYear+((calMonth+1)<10?"0":"") + (calMonth+1) + (calDayOfMon<10?"0":"") + calDayOfMon;
+		if (useDB) {
+			saveMemo = "'" + saveMemo + "'";
+			db.insertData(tmpDate, saveMemo);
+			bottomInfo.setText(saveMemo + SaveButMsg1);
+		} else {
+			saveMemo += '\n';
+			try {
+				File f = new File("MemoData");
+				if(!f.isDirectory()) f.mkdir();
 				
-				pw.append(memo);  
-				pw.close();
-				
-				bottomInfo.setText(calYear + ((calMonth + 1) < 10 ? "0" : "") 
-						+ (calMonth + 1) + (calDayOfMon < 10 ? "0" : "") + calDayOfMon + ".txt" + SaveButMsg1);
-				readMemo();
-				showCal();
-			} else 
-				bottomInfo.setText(SaveButMsg2);
-		} catch (IOException e1) {
-			bottomInfo.setText(SaveButMsg3);
+				if(saveMemo.length() > 0){
+					BufferedWriter out = new BufferedWriter(new FileWriter("MemoData/" + tmpDate + ".txt", true));
+					PrintWriter pw = new PrintWriter(out, true);
+					
+					pw.append(saveMemo);  
+					pw.close();
+					
+					bottomInfo.setText(saveMemo + SaveButMsg1);
+				} else 
+					bottomInfo.setText(SaveButMsg2);
+			} catch (IOException e1) {
+				bottomInfo.setText(SaveButMsg3);
+			}
 		}
+
+		readMemo();
+		showCal(); 
 	}
 	
 	private class ThreadConrol extends Thread{
@@ -577,13 +619,14 @@ public class MemoCalendar extends CalendarDataManager{ // CalendarDataManager의 
 			public void actionPerformed(ActionEvent e) {
 				JButton target = (JButton)e.getSource();
 				if(target.equals(saveBut)) {					//저장버튼의 리스너
-					writeMemo(memoInsArea.getText() + "\n");
+					writeMemo(memoInsArea.getText());
 					memoInsArea.setText("");
 				} else if(target.equals(delBut)) {				//삭제버튼의 리스너
 					int selected = memoShoArea.getSelectedIndex();
 					if (selected != -1) {
+						String saveMemo = memoAreaText.get(selected);
 						memoAreaText.remove(selected);
-						modifyMemo();
+						modifyMemo(saveMemo);
 					} else {
 						bottomInfo.setText(DelButMsg2);
 						bottomInfo.setFont(font);
