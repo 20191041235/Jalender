@@ -3,7 +3,7 @@ import java.util.Vector;
 
 public class DBManager {
 	private final String JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
-	private final String DB_URL = "jdbc:mysql://localhost/jalendar?&useSSL=false&serverTimezone=UTC";
+	private final String DB_URL = "jdbc:mysql://localhost/jalendar?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC";
 	
 	private final String USER_NAME = "juser";
 	private final String PASSWORD = "user1";
@@ -17,6 +17,7 @@ public class DBManager {
 			state = conn.createStatement();
 			System.out.println("Database Connected");
 		} catch (Exception e) {
+			e.printStackTrace();
 			System.out.println("File System Connected");
 			return false;
 		}
